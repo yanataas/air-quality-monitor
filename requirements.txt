@@ -1,0 +1,24 @@
+# Основные
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-WTF==1.1.1
+
+# Безопасность
+Werkzeug==2.3.7
+cryptography==41.0.3
+
+# Датчики и оборудование
+pyserial==3.5
+RPi.GPIO==0.7.1
+
+# AI и анализ
+scikit-learn==1.3.0
+pandas==2.0.3
+numpy==1.24.3
+
+# Мониторинг
+psutil==5.9.5
+
+# Веб-сервер для продакшена
+gunicorn==21.2.0
