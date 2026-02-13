@@ -38,6 +38,7 @@ SAMPLE_INTERVAL = 3600  # 1 час в секундах
 # Переменные для накопления данных
 accumulated_data = []
 last_sample_time = None
+accumulation_start_time = None  # Время начала накопления данных
 
 def init_database():
     """Инициализация базы данных"""
@@ -56,7 +57,7 @@ def init_database():
                   aqi INTEGER,
                   quality TEXT)''')
     
-    # Таблица для часовых образцов (переименовано из ten_minute_data)
+    # Таблица для часовых образцов
     c.execute('''CREATE TABLE IF NOT EXISTS hourly_data
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   timestamp DATETIME,
@@ -73,7 +74,8 @@ def init_database():
                   experiment_name TEXT DEFAULT 'Air Quality Experiment',
                   start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
                   total_samples INTEGER DEFAULT 0,
-                  sampling_interval TEXT DEFAULT '1 hour')''')
+                  sampling_interval TEXT DEFAULT '1 hour',
+                  last_sample_time DATETIME)''')
     
     conn.commit()
     conn.close()
@@ -108,13 +110,13 @@ def get_aqi_level(aqi):
 def get_air_quality_color(aqi):
     """Определение цвета качества воздуха на основе AQI"""
     if aqi <= 50:
-        return '#4CAF50'  # Зеленый - Good
+        return '#4CAF50'
     elif aqi <= 100:
-        return '#FFC107'  # Желтый - Moderate
+        return '#FFC107'
     elif aqi <= 150:
-        return '#FF9800'  # Оранжевый - Unhealthy
+        return '#FF9800'
     else:
-        return '#F44336'  # Красный - Hazardous
+        return '#F44336'
 
 def save_hourly_sample(sample_data):
     """Сохранение часового усредненного образца"""
@@ -122,11 +124,10 @@ def save_hourly_sample(sample_data):
         conn = sqlite3.connect(app.config['DATABASE'])
         c = conn.cursor()
         
-        # Сохраняем в hourly_data
         c.execute('''INSERT INTO hourly_data 
                      (timestamp, pm1, pm25, pm10, temperature, humidity, sample_count)
                      VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                  (datetime.now().isoformat(),
+                  (sample_data['timestamp'],
                    sample_data['pm1_avg'],
                    sample_data['pm25_avg'],
                    sample_data['pm10_avg'],
@@ -134,11 +135,9 @@ def save_hourly_sample(sample_data):
                    sample_data['hum_avg'],
                    sample_data['sample_count']))
         
-        # Рассчитываем AQI
         aqi = calculate_aqi(sample_data['pm25_avg'])
         quality = get_aqi_level(aqi)
         
-        # Сохраняем в sensor_data
         c.execute('''INSERT INTO sensor_data 
                      (pm1, pm25, pm10, temperature, humidity, aqi, quality)
                      VALUES (?, ?, ?, ?, ?, ?, ?)''',
@@ -150,10 +149,11 @@ def save_hourly_sample(sample_data):
                    aqi,
                    quality))
         
-        # Обновляем счетчик
         c.execute('''UPDATE experiment_meta 
-                     SET total_samples = total_samples + 1 
-                     WHERE id = 1''')
+                     SET total_samples = total_samples + 1,
+                         last_sample_time = ?
+                     WHERE id = 1''',
+                  (sample_data['timestamp'],))
         
         conn.commit()
         conn.close()
@@ -167,13 +167,12 @@ def save_hourly_sample(sample_data):
 
 def process_accumulated_data():
     """Обработка накопленных данных и создание часового образца"""
-    global accumulated_data
+    global accumulated_data, accumulation_start_time
     
     if not accumulated_data:
         print("⚠️ No accumulated data to process")
         return None
     
-    # Рассчитываем средние значения
     sample_count = len(accumulated_data)
     
     pm1_sum = sum(d.get('pm1', 0) for d in accumulated_data)
@@ -194,14 +193,15 @@ def process_accumulated_data():
     
     print(f"📊 Processed {sample_count} samples over 1 hour: PM2.5={sample_data['pm25_avg']:.1f}")
     
-    # Очищаем накопленные данные
-    accumulated_data.clear()
+    # Очищаем накопленные данные и устанавливаем новое время начала накопления
+    accumulated_data = []
+    accumulation_start_time = time.time()
     
     return sample_data
 
 def read_serial_data():
-    """Чтение РЕАЛЬНЫХ данных с Arduino с автоподключением"""
-    global current_data, accumulated_data, last_sample_time
+    """Чтение данных с Arduino с автоподключением"""
+    global current_data, accumulated_data, last_sample_time, accumulation_start_time
     
     while True:
         try:
@@ -212,7 +212,6 @@ def read_serial_data():
             time.sleep(2)
             ser.reset_input_buffer()
             
-            last_sample_time = time.time()
             raw_data_count = 0
             
             while True:
@@ -240,17 +239,20 @@ def read_serial_data():
                                     'time': datetime.now().strftime('%H:%M:%S'),
                                     'date': datetime.now().strftime('%Y-%m-%d'),
                                     'raw_data_count': raw_data_count,
+                                    'accumulated_count': len(accumulated_data),
                                     'status': 'connected'
                                 }
                                 
                                 socketio.emit('sensor_data', current_data)
                                 
                                 current_time = time.time()
-                                if current_time - last_sample_time >= SAMPLE_INTERVAL:
+                                if current_time - accumulation_start_time >= SAMPLE_INTERVAL:
                                     print(f"⏰ 1 hour passed. Processing {len(accumulated_data)} samples...")
                                     
                                     sample_data = process_accumulated_data()
                                     if sample_data:
+                                        save_hourly_sample(sample_data)
+                                        
                                         aqi = calculate_aqi(sample_data['pm25_avg'])
                                         quality = get_aqi_level(aqi)
                                         color = get_air_quality_color(aqi)
@@ -272,7 +274,6 @@ def read_serial_data():
                                         }
                                         
                                         data_history.append(dashboard_data)
-                                        save_hourly_sample(sample_data)
                                         socketio.emit('hourly_sample', dashboard_data)
                                         print(f"📈 Hourly avg: PM2.5={dashboard_data['pm25']}, AQI={aqi}, Quality={quality}")
                                     
@@ -315,6 +316,22 @@ def read_serial_data():
             
             time.sleep(10)
 
+def calculate_progress(start_time, interval):
+    """Расчет прогресса накопления данных"""
+    if start_time is None:
+        return 0
+    elapsed = time.time() - start_time
+    progress = min(100, int((elapsed / interval) * 100))
+    return progress
+
+def get_remaining_time(start_time, interval):
+    """Получение оставшегося времени до следующего семпла"""
+    if start_time is None:
+        return interval
+    elapsed = time.time() - start_time
+    remaining = max(0, interval - elapsed)
+    return remaining
+
 # ========== Flask Routes ==========
 
 @app.route('/')
@@ -327,7 +344,6 @@ def get_hourly_samples():
     try:
         conn = sqlite3.connect(app.config['DATABASE'])
         
-        # Запрос с расчетом AQI для часовых данных
         query = """
         SELECT 
             hd.*,
@@ -347,13 +363,12 @@ def get_hourly_samples():
             END as quality_level
         FROM hourly_data hd
         ORDER BY hd.timestamp DESC 
-        LIMIT 168  -- 7 дней * 24 часа = 168 часов
+        LIMIT 168
         """
         
         df = pd.read_sql_query(query, conn)
         conn.close()
         
-        # Преобразуем типы данных
         if not df.empty and 'aqi' in df.columns:
             df['aqi'] = df['aqi'].astype(int)
         
@@ -390,12 +405,26 @@ def get_statistics():
         
         df_7d = pd.read_sql_query(last7d_query, conn)
         
+        current_progress = 0
+        remaining_time = SAMPLE_INTERVAL
+        samples_collected = len(accumulated_data)
+        
+        if accumulation_start_time:
+            current_progress = calculate_progress(accumulation_start_time, SAMPLE_INTERVAL)
+            remaining_time = get_remaining_time(accumulation_start_time, SAMPLE_INTERVAL)
+        
         conn.close()
         
         return jsonify({
             'statistics': df_stats.to_dict('records')[0] if not df_stats.empty else {},
             'last_7days': df_7d.to_dict('records'),
-            'current_data': current_data
+            'current_data': current_data,
+            'accumulation': {
+                'progress': current_progress,
+                'remaining_time': remaining_time,
+                'samples_collected': samples_collected,
+                'next_sample_in': remaining_time
+            }
         })
         
     except Exception as e:
@@ -432,7 +461,6 @@ def export_last_7days():
         df = pd.read_sql_query(query, conn)
         conn.close()
         
-        # Создаем CSV
         output = BytesIO()
         df.to_csv(output, index=False)
         output.seek(0)
@@ -449,6 +477,29 @@ def export_last_7days():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/current_progress')
+def get_current_progress():
+    """Получение текущего прогресса накопления данных"""
+    global accumulation_start_time, accumulated_data
+    
+    if accumulation_start_time:
+        progress = calculate_progress(accumulation_start_time, SAMPLE_INTERVAL)
+        remaining = get_remaining_time(accumulation_start_time, SAMPLE_INTERVAL)
+        
+        return jsonify({
+            'progress': progress,
+            'remaining': remaining,
+            'samples_collected': len(accumulated_data),
+            'next_sample_in': remaining
+        })
+    else:
+        return jsonify({
+            'progress': 0,
+            'remaining': SAMPLE_INTERVAL,
+            'samples_collected': 0,
+            'next_sample_in': SAMPLE_INTERVAL
+        })
+
 if __name__ == '__main__':
     init_database()
     
@@ -460,10 +511,13 @@ if __name__ == '__main__':
         conn.commit()
         print("✅ Experiment record created")
     
-    # Обновляем интервал сэмплирования
     c.execute("UPDATE experiment_meta SET sampling_interval = '1 hour' WHERE id = 1")
     conn.commit()
     conn.close()
+    
+    # Инициализируем время накопления
+    accumulation_start_time = time.time()
+    last_sample_time = time.time()
     
     serial_thread = threading.Thread(target=read_serial_data, daemon=True)
     serial_thread.start()
@@ -476,6 +530,8 @@ if __name__ == '__main__':
     print(f"⏱️  Sampling interval: 1 HOUR")
     print(f"📊 Samples shown: Last 7 days (168 hours)")
     print(f"🌐 Dashboard: http://localhost:5000")
+    print("="*60)
+    print(f"🕐 First hourly sample will be ready in 1 hour")
     print("="*60)
     
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)

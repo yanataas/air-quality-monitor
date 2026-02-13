@@ -17,8 +17,6 @@
             --hazardous: #F44336;
         }
 
-        
-        
         body {
             background: #f5f5f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -97,29 +95,27 @@
             font-size: 0.9rem;
         }
 
-        /* Мобильная адаптация */
-@media (max-width: 768px) {
-    .value-large {
-        font-size: 1.8rem !important;
-    }
-    
-    .card {
-        margin-bottom: 10px;
-    }
-    
-    .table-responsive {
-        font-size: 0.85rem;
-    }
-    
-    .header h1 {
-        font-size: 1.5rem;
-    }
-    
-    .col-md-2, .col-sm-4 {
-        margin-bottom: 15px;
-    }
-}
-
+        @media (max-width: 768px) {
+            .value-large {
+                font-size: 1.8rem !important;
+            }
+            
+            .card {
+                margin-bottom: 10px;
+            }
+            
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .col-md-2, .col-sm-4 {
+                margin-bottom: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -153,7 +149,9 @@
                             </div>
                             <div class="col-md-6 text-end">
                                 <div id="nextSampleCountdown">
-                                    <small>Next hourly sample in: <span id="countdownTimer">60:00</span></small>
+                                    <small>⏱️ Next hourly sample in: <span id="countdownTimer">60:00</span></small>
+                                    <br>
+                                    <small class="text-muted" id="samplesCollected">0 samples collected</small>
                                 </div>
                                 <div class="sample-time">
                                     Last update: <span id="lastUpdateTime">--:--:--</span>
@@ -198,9 +196,6 @@
                                     <div class="text-muted small">Temperature</div>
                                     <div class="value-large" id="tempValue">--</div>
                                     <div class="unit">°C</div>
-                                    <div class="mt-2">
-                                        <small id="tempStatus">--</small>
-                                    </div>
                                 </div>
                             </div>
                             
@@ -210,9 +205,6 @@
                                     <div class="text-muted small">Humidity</div>
                                     <div class="value-large" id="humValue">--</div>
                                     <div class="unit">%</div>
-                                    <div class="mt-2">
-                                        <small id="humStatus">--</small>
-                                    </div>
                                 </div>
                             </div>
                             
@@ -355,9 +347,7 @@
         let pm25Chart;
         let tempHumChart;
         let countdownInterval;
-        let nextSampleTime = null;
         
-        // Инициализация WebSocket
         function initWebSocket() {
             socket = io();
             
@@ -403,14 +393,13 @@
                     statusMessage.textContent = data.message;
                     updateConnectionStatus('waiting', data.message);
                 } else {
-                    statusMessage.textContent = `Collecting data... ${data.raw_data_count || 0} raw samples`;
+                    statusMessage.textContent = `Collecting data... ${data.accumulated_count || 0} raw samples collected`;
                     updateConnectionStatus('connected', 'Receiving data from Arduino');
                 }
             }
         }
         
         function updateHourlySample(data) {
-            // Обновляем основные значения
             document.getElementById('pm25Value').textContent = data.pm25 || '--';
             document.getElementById('aqiValue').textContent = data.aqi || '--';
             document.getElementById('tempValue').textContent = data.temperature || '--';
@@ -419,7 +408,6 @@
             document.getElementById('pm10Value').textContent = data.pm10 || '--';
             document.getElementById('sampleCount').textContent = data.sample_count || 0;
             
-            // Обновляем качество воздуха
             const pm25Quality = document.getElementById('pm25Quality');
             const aqiQuality = document.getElementById('aqiQuality');
             
@@ -427,7 +415,6 @@
                 pm25Quality.textContent = data.quality;
                 aqiQuality.textContent = data.quality;
                 
-                // Устанавливаем цвет на основе AQI
                 const color = getColorFromAQI(data.aqi);
                 pm25Quality.style.backgroundColor = color;
                 aqiQuality.style.backgroundColor = color;
@@ -435,15 +422,13 @@
                 aqiQuality.style.color = data.aqi <= 100 ? 'black' : 'white';
             }
             
-            // Обновляем время
             document.getElementById('lastUpdateTime').textContent = data.time || '--:--:--';
-            
-            // Обновляем статус
             document.getElementById('statusMessage').textContent = 
                 `✅ Hourly sample collected (${data.sample_count || 0} samples averaged over 1 hour)`;
                 
             updateCharts(data);
             addToDataTable(data);
+            startCountdownTimer();
         }
         
         function getColorFromAQI(aqi) {
@@ -459,23 +444,26 @@
                 clearInterval(countdownInterval);
             }
             
-            nextSampleTime = new Date();
-            nextSampleTime.setHours(nextSampleTime.getHours() + 1);
-            
             countdownInterval = setInterval(function() {
-                const now = new Date();
-                const diff = nextSampleTime - now;
-                
-                if (diff <= 0) {
-                    document.getElementById('countdownTimer').textContent = '00:00:00';
-                    clearInterval(countdownInterval);
-                } else {
-                    const hours = Math.floor(diff / 3600000);
-                    const minutes = Math.floor((diff % 3600000) / 60000);
-                    const seconds = Math.floor((diff % 60000) / 1000);
-                    document.getElementById('countdownTimer').textContent = 
-                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }
+                fetch('/api/current_progress')
+                    .then(response => response.json())
+                    .then(data => {
+                        const minutes = Math.floor(data.remaining / 60);
+                        const seconds = Math.floor(data.remaining % 60);
+                        document.getElementById('countdownTimer').textContent = 
+                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        
+                        document.getElementById('samplesCollected').textContent = 
+                            `${data.samples_collected} samples collected`;
+                        
+                        const statusMessage = document.getElementById('statusMessage');
+                        if (statusMessage && data.samples_collected > 0 && !statusMessage.textContent.includes('✅')) {
+                            statusMessage.innerHTML = `📊 Collecting data... ${data.samples_collected} raw samples collected (${data.progress}% of 1 hour)`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching progress:', error);
+                    });
             }, 1000);
         }
         
@@ -500,12 +488,10 @@
             data.forEach(item => {
                 const row = document.createElement('tr');
                 
-                // Форматируем время и дату
                 const timestamp = new Date(item.timestamp);
                 const timeStr = timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 const dateStr = timestamp.toLocaleDateString();
                 
-                // Используем AQI из данных
                 const aqi = item.aqi || calculateAQI(item.pm25);
                 const qualityText = getAQILevel(aqi);
                 const qualityColor = getColorFromAQI(aqi);
@@ -597,14 +583,12 @@
         }
         
         function updateChartsWithHistoricalData(data) {
-            // График PM2.5 (7 дней)
             const pm25Ctx = document.getElementById('pm25Chart').getContext('2d');
             
             if (pm25Chart) {
                 pm25Chart.destroy();
             }
             
-            // Берем последние 7*24 = 168 точек (7 дней почасово)
             const recentData = data.slice(0, 168);
             const labels = recentData.map(d => {
                 const date = new Date(d.timestamp);
@@ -641,7 +625,6 @@
                 }
             });
             
-            // График температуры и влажности
             const tempHumCtx = document.getElementById('tempHumChart').getContext('2d');
             
             if (tempHumChart) {
@@ -699,7 +682,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initWebSocket();
             startCountdownTimer();
-            setInterval(loadHistoricalData, 60000); // Обновление каждую минуту
+            setInterval(loadHistoricalData, 60000);
         });
     </script>
 </body>
