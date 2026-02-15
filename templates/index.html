@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Air Quality Monitor - Hourly Samples</title>
+    <title>Air Quality Monitor - Offline Mode</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,108 +12,272 @@
         :root {
             --good: #4CAF50;
             --moderate: #FFC107;
-            --unhealthy: #FF9800;
-            --hazardous: #F44336;
+            --unhealthy-sg: #FF9800;
+            --unhealthy: #F44336;
+            --very-unhealthy: #9C27B0;
+            --hazardous: #7B1FA2;
+            --bg-dark: #1a1a1a;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            background: #f5f5f5;
+            background: #f0f2f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
-            padding: 20px 0;
-            margin-bottom: 30px;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1400px;
+            padding: 0 15px;
         }
         
         .card {
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
             border: none;
             margin-bottom: 20px;
-            transition: transform 0.3s;
+            transition: all 0.3s ease;
+            background: var(--card-bg);
+            overflow: hidden;
         }
         
         .card:hover {
-            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 2px solid #dee2e6;
+            padding: 15px 20px;
+            font-weight: 600;
         }
         
         .value-large {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             font-weight: 700;
+            line-height: 1.2;
             margin: 10px 0;
+            color: var(--text-primary);
+        }
+        
+        .value-large.small {
+            font-size: 2rem;
+        }
+        
+        .unit {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .quality-badge {
-            padding: 5px 15px;
-            border-radius: 20px;
+            padding: 6px 16px;
+            border-radius: 30px;
             font-weight: 600;
             font-size: 0.9rem;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .status-indicator {
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             display: inline-block;
             margin-right: 8px;
+            box-shadow: 0 0 8px currentColor;
         }
         
-        .connected { background-color: var(--good); }
-        .disconnected { background-color: var(--hazardous); }
-        .waiting { background-color: var(--moderate); }
+        .status-indicator.connected { 
+            background-color: var(--good);
+            box-shadow: 0 0 12px var(--good);
+        }
+        .status-indicator.disconnected { 
+            background-color: var(--unhealthy);
+            box-shadow: 0 0 12px var(--unhealthy);
+        }
+        .status-indicator.waiting { 
+            background-color: var(--moderate);
+            box-shadow: 0 0 12px var(--moderate);
+        }
         
-        .sample-time {
+        .info-box {
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid #2a5298;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2a5298;
+        }
+        
+        .stat-label {
             font-size: 0.85rem;
-            color: #666;
-            margin-top: 5px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
         }
         
         .chart-container {
             background: white;
-            border-radius: 15px;
+            border-radius: 16px;
             padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            height: 100%;
+            min-height: 300px;
         }
         
-        .aqi-legend {
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-weight: 600;
-            display: inline-block;
-        }
-        
-        .hourly-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .offline-badge {
+            background: #2a5298;
             color: white;
-            padding: 5px 15px;
+            padding: 4px 12px;
             border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 600;
-            font-size: 0.9rem;
+        }
+        
+        .system-info {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-top: 1px solid #dee2e6;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            background: #e9ecef;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #2a5298, #1e3c72);
+            border-radius: 4px;
+        }
+        
+        .data-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .data-row:hover {
+            background-color: #f8f9fa !important;
+        }
+        
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            padding: 10px 20px;
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .value-large {
+                font-size: 2.2rem !important;
+            }
+            
+            .card {
+                margin-bottom: 12px;
+            }
+            
+            .header h1 {
+                font-size: 1.4rem;
+            }
+            
+            .lead {
+                font-size: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 1.4rem;
+            }
+            
+            .chart-container {
+                padding: 12px;
+                min-height: 250px;
+            }
+            
+            .btn-touch {
+                padding: 12px 16px;
+                font-size: 1rem;
+            }
+            
+            .table {
+                font-size: 0.8rem;
+            }
+            
+            .quality-badge {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+            }
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 480px) {
             .value-large {
                 font-size: 1.8rem !important;
             }
             
-            .card {
-                margin-bottom: 10px;
+            .col-6 {
+                padding: 0 5px;
             }
             
-            .table-responsive {
-                font-size: 0.85rem;
+            .card-body {
+                padding: 12px;
             }
-            
-            .header h1 {
-                font-size: 1.5rem;
-            }
-            
-            .col-md-2, .col-sm-4 {
-                margin-bottom: 15px;
-            }
+        }
+
+        /* Touch-friendly styles */
+        button, .btn, .data-row, .quality-badge {
+            touch-action: manipulation;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #2a5298;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1e3c72;
         }
     </style>
 </head>
@@ -122,14 +285,21 @@
     <div class="header">
         <div class="container">
             <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1><i class="fas fa-wind"></i> Air Quality Experiment</h1>
-                    <p class="lead mb-0">Real-time monitoring with <span class="hourly-badge">1-hour sampling intervals</span></p>
+                <div class="col-md-7 col-8">
+                    <h1 class="mb-1"><i class="fas fa-microchip me-2"></i>Air Quality Monitor</h1>
+                    <p class="mb-0">
+                        <span class="offline-badge me-2">
+                            <i class="fas fa-wifi-slash me-1"></i>Offline Mode
+                        </span>
+                        <span class="badge bg-light text-dark">
+                            <i class="fas fa-database me-1"></i>Local Storage
+                        </span>
+                    </p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-inline-block bg-white text-dark rounded-pill px-3 py-2">
+                <div class="col-md-5 col-4 text-end">
+                    <div class="bg-white text-dark rounded-pill px-3 py-2 d-inline-block">
                         <span class="status-indicator" id="statusIndicator"></span>
-                        <span id="connectionStatus">Connecting...</span>
+                        <span id="connectionStatus" class="d-none d-sm-inline">Connecting...</span>
                     </div>
                 </div>
             </div>
@@ -137,24 +307,72 @@
     </div>
 
     <div class="container">
-        <!-- Current Status -->
+        <!-- System Info Bar -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-microchip text-primary"></i>
+                                <span class="badge bg-success ms-1">Standalone</span>
+                            </div>
+                            <div class="me-3">
+                                <i class="fas fa-clock"></i>
+                                <span id="uptimeDisplay">Uptime: 0:00:00</span>
+                            </div>
+                            <div class="me-3">
+                                <i class="fas fa-database"></i>
+                                <span id="recordCount">0</span> records
+                            </div>
+                            <div>
+                                <i class="fas fa-usb"></i>
+                                <span id="arduinoStatus">Arduino: Disconnected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Card -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-6">
-                                <h5 class="card-title"><i class="fas fa-info-circle"></i> Current Status</h5>
-                                <p class="card-text" id="statusMessage">Waiting for Arduino connection...</p>
-                            </div>
-                            <div class="col-md-6 text-end">
-                                <div id="nextSampleCountdown">
-                                    <small>⏱️ Next hourly sample in: <span id="countdownTimer">60:00</span></small>
-                                    <br>
-                                    <small class="text-muted" id="samplesCollected">0 samples collected</small>
+                                <h5 class="card-title">
+                                    <i class="fas fa-info-circle text-primary me-2"></i>
+                                    System Status
+                                </h5>
+                                <p class="card-text mb-2" id="statusMessage">
+                                    <span class="badge bg-warning">Waiting for Arduino...</span>
+                                </p>
+                                <div class="progress mb-2" style="height: 8px;">
+                                    <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
                                 </div>
-                                <div class="sample-time">
-                                    Last update: <span id="lastUpdateTime">--:--:--</span>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="rawCount">0</div>
+                                            <div class="stat-label">Raw Samples</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="hourlyCount">0</div>
+                                            <div class="stat-label">Hourly</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="stat-item">
+                                            <div class="stat-value" id="nextSampleTimer">60:00</div>
+                                            <div class="stat-label">Next Sample</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -166,13 +384,17 @@
         <!-- Current Hourly Sample -->
         <div class="row mb-4">
             <div class="col-12">
-                <h4><i class="fas fa-clock"></i> Current Hourly Average <span class="badge bg-primary">1-hour</span></h4>
+                <h4 class="mb-3">
+                    <i class="fas fa-clock text-primary me-2"></i>
+                    Current Hourly Average 
+                    <span class="badge bg-primary ms-2">1-hour</span>
+                </h4>
                 <div class="card">
                     <div class="card-body">
-                        <div class="row text-center">
+                        <div class="row text-center g-2">
                             <!-- PM2.5 -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
                                     <div class="text-muted small">PM2.5</div>
                                     <div class="value-large" id="pm25Value">--</div>
                                     <div class="unit">µg/m³</div>
@@ -181,9 +403,9 @@
                             </div>
                             
                             <!-- AQI -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
-                                    <div class="text-muted small">Air Quality Index</div>
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
+                                    <div class="text-muted small">AQI</div>
                                     <div class="value-large" id="aqiValue">--</div>
                                     <div class="unit">Index</div>
                                     <div id="aqiQuality" class="quality-badge mt-2">--</div>
@@ -191,8 +413,8 @@
                             </div>
                             
                             <!-- Temperature -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
                                     <div class="text-muted small">Temperature</div>
                                     <div class="value-large" id="tempValue">--</div>
                                     <div class="unit">°C</div>
@@ -200,8 +422,8 @@
                             </div>
                             
                             <!-- Humidity -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
                                     <div class="text-muted small">Humidity</div>
                                     <div class="value-large" id="humValue">--</div>
                                     <div class="unit">%</div>
@@ -209,8 +431,8 @@
                             </div>
                             
                             <!-- PM1.0 -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
                                     <div class="text-muted small">PM1.0</div>
                                     <div class="value-large" id="pm1Value">--</div>
                                     <div class="unit">µg/m³</div>
@@ -218,8 +440,8 @@
                             </div>
                             
                             <!-- PM10 -->
-                            <div class="col-md-2 col-sm-4 mb-3">
-                                <div class="p-3">
+                            <div class="col-6 col-md-2 mb-2">
+                                <div class="p-2 p-md-3">
                                     <div class="text-muted small">PM10</div>
                                     <div class="value-large" id="pm10Value">--</div>
                                     <div class="unit">µg/m³</div>
@@ -229,8 +451,8 @@
                         
                         <div class="row mt-3">
                             <div class="col-12">
-                                <div class="alert alert-info mb-0">
-                                    <i class="fas fa-info-circle"></i>
+                                <div class="info-box">
+                                    <i class="fas fa-info-circle me-2"></i>
                                     This data represents the average of all measurements taken over the last 1 hour.
                                     <strong id="sampleCount">0</strong> samples were used for this average.
                                     <span class="badge bg-primary ms-2">Hourly Average</span>
@@ -246,14 +468,20 @@
         <div class="row">
             <div class="col-lg-6 mb-4">
                 <div class="chart-container">
-                    <h5><i class="fas fa-chart-line"></i> PM2.5 Trend (Last 7 Days)</h5>
-                    <canvas id="pm25Chart"></canvas>
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        PM2.5 Trend (Last 7 Days)
+                    </h5>
+                    <canvas id="pm25Chart" style="width:100%; max-height:300px;"></canvas>
                 </div>
             </div>
             <div class="col-lg-6 mb-4">
                 <div class="chart-container">
-                    <h5><i class="fas fa-thermometer-half"></i> Temperature & Humidity</h5>
-                    <canvas id="tempHumChart"></canvas>
+                    <h5 class="mb-3">
+                        <i class="fas fa-thermometer-half text-primary me-2"></i>
+                        Temperature & Humidity
+                    </h5>
+                    <canvas id="tempHumChart" style="width:100%; max-height:300px;"></canvas>
                 </div>
             </div>
         </div>
@@ -262,34 +490,42 @@
         <div class="row">
             <div class="col-12">
                 <div class="chart-container">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0"><i class="fas fa-table"></i> Recent Hourly Samples</h5>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <h5 class="mb-2 mb-md-0">
+                            <i class="fas fa-table text-primary me-2"></i>
+                            Recent Hourly Samples
+                        </h5>
                         <div>
-                            <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
+                            <button class="btn btn-outline-primary btn-touch me-2" onclick="refreshData()">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
-                            <button class="btn btn-sm btn-success" onclick="exportData()">
+                            <button class="btn btn-success btn-touch" onclick="exportData()">
                                 <i class="fas fa-download"></i> Export
                             </button>
                         </div>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-hover">
-                            <thead>
+                            <thead class="sticky-top bg-white">
                                 <tr>
                                     <th>Time</th>
                                     <th>Date</th>
-                                    <th>PM2.5 (µg/m³)</th>
+                                    <th>PM2.5</th>
                                     <th>AQI</th>
                                     <th>Quality</th>
-                                    <th>Temp (°C)</th>
-                                    <th>Humidity (%)</th>
+                                    <th>Temp</th>
+                                    <th>Humidity</th>
                                     <th>Samples</th>
                                 </tr>
                             </thead>
                             <tbody id="dataTable">
                                 <tr>
-                                    <td colspan="8" class="text-center">Loading data...</td>
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <br>Loading data...
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -303,32 +539,58 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <h6><i class="fas fa-palette"></i> Air Quality Index (AQI) Color Scale:</h6>
-                        <div class="row text-center mt-3">
-                            <div class="col">
-                                <div class="p-2 rounded" style="background-color: var(--good); color: white;">
-                                    <strong>Good</strong><br>0-50 AQI
+                        <h6 class="mb-3"><i class="fas fa-palette me-2"></i>Air Quality Index (AQI) Scale:</h6>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--good); color: white;">
+                                    <strong>Good</strong><br><small>0-50</small>
                                 </div>
                             </div>
-                            <div class="col">
-                                <div class="p-2 rounded" style="background-color: var(--moderate); color: black;">
-                                    <strong>Moderate</strong><br>51-100 AQI
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--moderate); color: black;">
+                                    <strong>Moderate</strong><br><small>51-100</small>
                                 </div>
                             </div>
-                            <div class="col">
-                                <div class="p-2 rounded" style="background-color: var(--unhealthy); color: white;">
-                                    <strong>Unhealthy</strong><br>101-150 AQI
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--unhealthy-sg); color: white;">
+                                    <strong>Unhealthy (SG)</strong><br><small>101-150</small>
                                 </div>
                             </div>
-                            <div class="col">
-                                <div class="p-2 rounded" style="background-color: var(--hazardous); color: white;">
-                                    <strong>Hazardous</strong><br>151+ AQI
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--unhealthy); color: white;">
+                                    <strong>Unhealthy</strong><br><small>151-200</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--very-unhealthy); color: white;">
+                                    <strong>Very Unhealthy</strong><br><small>201-300</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3 col-lg-2">
+                                <div class="p-2 rounded text-center" style="background-color: var(--hazardous); color: white;">
+                                    <strong>Hazardous</strong><br><small>301+</small>
                                 </div>
                             </div>
                         </div>
                         <div class="mt-3 text-muted small">
-                            <i class="fas fa-info-circle"></i> AQI is calculated based on PM2.5 concentration using the US EPA standard.
-                            <span class="badge bg-primary ms-2">Hourly Sampling</span>
+                            <i class="fas fa-info-circle me-1"></i>
+                            AQI calculated based on PM2.5 concentration (US EPA standard).
+                            <span class="badge bg-primary ms-2">Offline Mode</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info Footer -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <div class="d-flex flex-wrap justify-content-between small">
+                            <span><i class="fas fa-hdd"></i> Database: <span id="dbSize">0 MB</span></span>
+                            <span><i class="fas fa-clock"></i> Last update: <span id="lastUpdateTime">--:--:--</span></span>
+                            <span><i class="fas fa-error"></i> Errors: <span id="errorCount">0</span></span>
                         </div>
                     </div>
                 </div>
@@ -336,9 +598,11 @@
         </div>
     </div>
 
-    <footer class="mt-5 py-3 text-center text-muted">
+    <footer class="mt-4 py-3 text-center text-muted small">
         <div class="container">
-            <small>Air Quality Experiment Dashboard • Data updates every 1 hour • Arduino + Python + Flask</small>
+            <i class="fas fa-microchip me-1"></i> Air Quality Monitor • 
+            <i class="fas fa-wifi-slash me-1"></i> Offline Mode • 
+            Data stored locally on Raspberry Pi
         </div>
     </footer>
 
@@ -347,16 +611,37 @@
         let pm25Chart;
         let tempHumChart;
         let countdownInterval;
+        let systemUptimeInterval;
+        let startTime = new Date();
+        
+        // Quality colors mapping
+        const qualityColors = {
+            'Good': '#4CAF50',
+            'Moderate': '#FFC107',
+            'Unhealthy for Sensitive Groups': '#FF9800',
+            'Unhealthy': '#F44336',
+            'Very Unhealthy': '#9C27B0',
+            'Hazardous': '#7B1FA2'
+        };
         
         function initWebSocket() {
-            socket = io();
+            socket = io({
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
             
             socket.on('connect', function() {
-                updateConnectionStatus('connected', 'Connected to server');
+                console.log('Socket connected');
+                updateConnectionStatus('connected', 'Connected');
+                loadHistoricalData();
+                loadSystemInfo();
             });
             
             socket.on('disconnect', function() {
-                updateConnectionStatus('disconnected', 'Disconnected from server');
+                console.log('Socket disconnected');
+                updateConnectionStatus('disconnected', 'Disconnected');
             });
             
             socket.on('sensor_data', function(data) {
@@ -366,36 +651,32 @@
             socket.on('hourly_sample', function(data) {
                 updateHourlySample(data);
                 startCountdownTimer();
+                loadHistoricalData(); // Reload table with new data
             });
             
-            loadHistoricalData();
+            socket.on('status', function(data) {
+                updateProgress(data);
+            });
         }
         
         function updateConnectionStatus(status, message) {
             const indicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('connectionStatus');
-            const statusMessage = document.getElementById('statusMessage');
             
             indicator.className = 'status-indicator ' + status;
-            statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-            
-            if (message) {
-                statusMessage.textContent = message;
-            }
+            if (statusText) statusText.textContent = message;
         }
         
         function updateCurrentData(data) {
             document.getElementById('lastUpdateTime').textContent = data.time || '--:--:--';
             
-            if (!data.is_hourly_sample) {
-                const statusMessage = document.getElementById('statusMessage');
-                if (data.status === 'waiting_for_arduino') {
-                    statusMessage.textContent = data.message;
-                    updateConnectionStatus('waiting', data.message);
-                } else {
-                    statusMessage.textContent = `Collecting data... ${data.accumulated_count || 0} raw samples collected`;
-                    updateConnectionStatus('connected', 'Receiving data from Arduino');
-                }
+            if (data.arduino_connected !== undefined) {
+                document.getElementById('arduinoStatus').innerHTML = 
+                    `<i class="fas fa-usb me-1"></i>Arduino: ${data.arduino_connected ? 'Connected' : 'Disconnected'}`;
+            }
+            
+            if (data.accumulated_count !== undefined) {
+                document.getElementById('rawCount').textContent = data.raw_data_count || 0;
             }
         }
         
@@ -415,34 +696,37 @@
                 pm25Quality.textContent = data.quality;
                 aqiQuality.textContent = data.quality;
                 
-                const color = getColorFromAQI(data.aqi);
+                const color = qualityColors[data.quality] || '#666';
                 pm25Quality.style.backgroundColor = color;
                 aqiQuality.style.backgroundColor = color;
                 pm25Quality.style.color = data.aqi <= 100 ? 'black' : 'white';
                 aqiQuality.style.color = data.aqi <= 100 ? 'black' : 'white';
             }
             
-            document.getElementById('lastUpdateTime').textContent = data.time || '--:--:--';
-            document.getElementById('statusMessage').textContent = 
-                `✅ Hourly sample collected (${data.sample_count || 0} samples averaged over 1 hour)`;
-                
-            updateCharts(data);
-            addToDataTable(data);
-            startCountdownTimer();
+            document.getElementById('statusMessage').innerHTML = 
+                `<span class="badge bg-success">✅ Hourly sample collected (${data.sample_count || 0} samples)</span>`;
+            
+            document.getElementById('hourlyCount').textContent = 
+                parseInt(document.getElementById('hourlyCount').textContent || '0') + 1;
         }
         
-        function getColorFromAQI(aqi) {
-            if (!aqi) return '#666';
-            if (aqi <= 50) return 'var(--good)';
-            if (aqi <= 100) return 'var(--moderate)';
-            if (aqi <= 150) return 'var(--unhealthy)';
-            return 'var(--hazardous)';
+        function updateProgress(data) {
+            if (data.progress !== undefined) {
+                document.getElementById('progressBar').style.width = data.progress + '%';
+            }
+            if (data.accumulated !== undefined) {
+                document.getElementById('rawCount').textContent = data.accumulated;
+            }
+            if (data.next_sample_in !== undefined) {
+                const minutes = Math.floor(data.next_sample_in / 60);
+                const seconds = Math.floor(data.next_sample_in % 60);
+                document.getElementById('nextSampleTimer').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
         }
         
         function startCountdownTimer() {
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-            }
+            if (countdownInterval) clearInterval(countdownInterval);
             
             countdownInterval = setInterval(function() {
                 fetch('/api/current_progress')
@@ -450,21 +734,29 @@
                     .then(data => {
                         const minutes = Math.floor(data.remaining / 60);
                         const seconds = Math.floor(data.remaining % 60);
-                        document.getElementById('countdownTimer').textContent = 
+                        document.getElementById('nextSampleTimer').textContent = 
                             `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                         
-                        document.getElementById('samplesCollected').textContent = 
-                            `${data.samples_collected} samples collected`;
+                        document.getElementById('progressBar').style.width = data.progress + '%';
+                        document.getElementById('rawCount').textContent = data.samples_collected;
                         
-                        const statusMessage = document.getElementById('statusMessage');
-                        if (statusMessage && data.samples_collected > 0 && !statusMessage.textContent.includes('✅')) {
-                            statusMessage.innerHTML = `📊 Collecting data... ${data.samples_collected} raw samples collected (${data.progress}% of 1 hour)`;
+                        if (!data.arduino_connected) {
+                            document.getElementById('statusMessage').innerHTML = 
+                                '<span class="badge bg-warning">⏳ Waiting for Arduino connection...</span>';
                         }
                     })
-                    .catch(error => {
-                        console.error('Error fetching progress:', error);
-                    });
+                    .catch(console.error);
             }, 1000);
+        }
+        
+        function updateUptime() {
+            const now = new Date();
+            const diff = Math.floor((now - startTime) / 1000);
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            document.getElementById('uptimeDisplay').textContent = 
+                `Uptime: ${hours}h ${minutes}m ${seconds}s`;
         }
         
         function loadHistoricalData() {
@@ -473,36 +765,56 @@
                 .then(data => {
                     updateDataTable(data);
                     updateChartsWithHistoricalData(data);
-                });
+                    document.getElementById('recordCount').textContent = data.length;
+                })
+                .catch(console.error);
+        }
+        
+        function loadSystemInfo() {
+            fetch('/api/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.system_info) {
+                        document.getElementById('rawCount').textContent = data.system_info.total_raw_samples || 0;
+                        document.getElementById('hourlyCount').textContent = data.system_info.total_hourly_samples || 0;
+                        document.getElementById('errorCount').textContent = data.system_info.errors || 0;
+                        
+                        const dbSize = data.system_info.database_size || 0;
+                        document.getElementById('dbSize').textContent = 
+                            (dbSize / (1024 * 1024)).toFixed(2) + ' MB';
+                    }
+                })
+                .catch(console.error);
         }
         
         function updateDataTable(data) {
             const tbody = document.getElementById('dataTable');
-            tbody.innerHTML = '';
             
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No data available yet</td></tr>';
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No data available yet</td></tr>';
                 return;
             }
             
-            data.forEach(item => {
+            tbody.innerHTML = '';
+            data.slice(0, 50).forEach(item => {
                 const row = document.createElement('tr');
+                row.className = 'data-row';
                 
                 const timestamp = new Date(item.timestamp);
                 const timeStr = timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 const dateStr = timestamp.toLocaleDateString();
                 
-                const aqi = item.aqi || calculateAQI(item.pm25);
-                const qualityText = getAQILevel(aqi);
-                const qualityColor = getColorFromAQI(aqi);
+                const qualityText = item.quality || 'Unknown';
+                const qualityColor = qualityColors[qualityText] || '#666';
+                const textColor = (item.aqi || 0) <= 100 ? 'black' : 'white';
                 
                 row.innerHTML = `
                     <td>${timeStr}</td>
                     <td>${dateStr}</td>
                     <td><strong>${item.pm25 ? item.pm25.toFixed(1) : '--'}</strong></td>
-                    <td><strong class="aqi-value">${aqi}</strong></td>
+                    <td><strong class="aqi-value">${item.aqi || '--'}</strong></td>
                     <td>
-                        <span class="quality-badge" style="background-color: ${qualityColor}; color: ${aqi <= 100 ? 'black' : 'white'}">
+                        <span class="quality-badge" style="background-color: ${qualityColor}; color: ${textColor}">
                             ${qualityText}
                         </span>
                     </td>
@@ -515,87 +827,18 @@
             });
         }
         
-        function addToDataTable(data) {
-            const tbody = document.getElementById('dataTable');
-            
-            if (tbody.innerHTML.includes('No data') || tbody.innerHTML.includes('Loading')) {
-                updateDataTable([data]);
-            } else {
-                const newRow = document.createElement('tr');
-                
-                const timestamp = new Date(data.timestamp);
-                const timeStr = timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                const dateStr = timestamp.toLocaleDateString();
-                const aqi = data.aqi || '--';
-                const qualityColor = getColorFromAQI(aqi);
-                
-                newRow.innerHTML = `
-                    <td>${timeStr}</td>
-                    <td>${dateStr}</td>
-                    <td><strong>${data.pm25 || '--'}</strong></td>
-                    <td><strong class="aqi-value">${aqi}</strong></td>
-                    <td>
-                        <span class="quality-badge" style="background-color: ${qualityColor}; color: ${aqi <= 100 ? 'black' : 'white'}">
-                            ${data.quality || '--'}
-                        </span>
-                    </td>
-                    <td>${data.temperature || '--'}</td>
-                    <td>${data.humidity || '--'}</td>
-                    <td>${data.sample_count || 1}</td>
-                `;
-                
-                tbody.insertBefore(newRow, tbody.firstChild);
-                
-                if (tbody.children.length > 24) {
-                    tbody.removeChild(tbody.lastChild);
-                }
-            }
-        }
-        
-        function calculateAQI(pm25) {
-            if (!pm25) return '--';
-            
-            if (pm25 <= 12.0) {
-                return Math.round((50.0 / 12.0) * pm25);
-            } else if (pm25 <= 35.4) {
-                return Math.round(50 + (50.0 / 23.4) * (pm25 - 12.1));
-            } else if (pm25 <= 55.4) {
-                return Math.round(100 + (50.0 / 20.0) * (pm25 - 35.5));
-            } else if (pm25 <= 150.4) {
-                return Math.round(150 + (50.0 / 94.9) * (pm25 - 55.5));
-            } else if (pm25 <= 250.4) {
-                return Math.round(200 + (100.0 / 99.9) * (pm25 - 150.5));
-            } else {
-                return Math.round(300 + (200.0 / 249.9) * (Math.min(pm25, 500.4) - 250.5));
-            }
-        }
-        
-        function getAQILevel(aqi) {
-            if (aqi === '--') return 'Unknown';
-            if (aqi <= 50) return 'Good';
-            if (aqi <= 100) return 'Moderate';
-            if (aqi <= 150) return 'Unhealthy';
-            return 'Hazardous';
-        }
-        
-        function updateCharts(data) {
-            loadHistoricalData();
-        }
-        
         function updateChartsWithHistoricalData(data) {
-            const pm25Ctx = document.getElementById('pm25Chart').getContext('2d');
+            if (!data || data.length === 0) return;
             
-            if (pm25Chart) {
-                pm25Chart.destroy();
-            }
-            
-            const recentData = data.slice(0, 168);
+            const recentData = data.slice(0, 168).reverse();
             const labels = recentData.map(d => {
                 const date = new Date(d.timestamp);
-                return `${date.toLocaleDateString([], {month: 'short', day: 'numeric'})} ${date.toLocaleTimeString([], {hour: '2-digit'})}`;
-            }).reverse();
+                return `${date.toLocaleDateString([], {month: 'short', day: 'numeric'})} ${date.getHours()}:00`;
+            });
             
-            const pm25Data = recentData.map(d => d.pm25).reverse();
+            // PM2.5 Chart
+            const pm25Ctx = document.getElementById('pm25Chart').getContext('2d');
+            if (pm25Chart) pm25Chart.destroy();
             
             pm25Chart = new Chart(pm25Ctx, {
                 type: 'line',
@@ -603,16 +846,23 @@
                     labels: labels,
                     datasets: [{
                         label: 'PM2.5 (µg/m³) - Hourly Average',
-                        data: pm25Data,
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        data: recentData.map(d => d.pm25),
+                        borderColor: '#2a5298',
+                        backgroundColor: 'rgba(42, 82, 152, 0.1)',
                         tension: 0.4,
                         fill: true,
-                        pointRadius: 3
+                        pointRadius: 3,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
@@ -625,14 +875,9 @@
                 }
             });
             
+            // Temperature & Humidity Chart
             const tempHumCtx = document.getElementById('tempHumChart').getContext('2d');
-            
-            if (tempHumChart) {
-                tempHumChart.destroy();
-            }
-            
-            const tempData = recentData.map(d => d.temperature).reverse();
-            const humData = recentData.map(d => d.humidity).reverse();
+            if (tempHumChart) tempHumChart.destroy();
             
             tempHumChart = new Chart(tempHumCtx, {
                 type: 'line',
@@ -640,30 +885,58 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Temperature (°C) - Hourly Average',
-                            data: tempData,
-                            borderColor: '#FF6384',
-                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            label: 'Temperature (°C)',
+                            data: recentData.map(d => d.temperature),
+                            borderColor: '#F44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
                             tension: 0.4,
                             fill: true,
+                            yAxisID: 'y',
                             pointRadius: 3
                         },
                         {
-                            label: 'Humidity (%) - Hourly Average',
-                            data: humData,
-                            borderColor: '#36A2EB',
-                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            label: 'Humidity (%)',
+                            data: recentData.map(d => d.humidity),
+                            borderColor: '#2196F3',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
                             tension: 0.4,
                             fill: false,
+                            yAxisID: 'y1',
                             pointRadius: 3
                         }
                     ]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Humidity (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            min: 0,
+                            max: 100
                         }
                     }
                 }
@@ -672,17 +945,37 @@
         
         function refreshData() {
             loadHistoricalData();
-            document.getElementById('statusMessage').textContent = 'Data refreshed';
+            loadSystemInfo();
+            document.getElementById('statusMessage').innerHTML = 
+                '<span class="badge bg-info">Data refreshed</span>';
+            setTimeout(() => {
+                loadHistoricalData();
+            }, 500);
         }
         
         function exportData() {
             window.open('/api/export/last_7days', '_blank');
         }
         
+        // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initWebSocket();
             startCountdownTimer();
-            setInterval(loadHistoricalData, 60000);
+            systemUptimeInterval = setInterval(updateUptime, 1000);
+            
+            // Load data every 30 seconds
+            setInterval(loadHistoricalData, 30000);
+            setInterval(loadSystemInfo, 10000);
+            
+            // Initial loads
+            loadHistoricalData();
+            loadSystemInfo();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (systemUptimeInterval) clearInterval(systemUptimeInterval);
         });
     </script>
 </body>
